@@ -1,0 +1,2 @@
+# Only the GZ302EA WMI hotkey source, accessible to the active local seat.
+ACTION!="remove", SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="Asus WMI hotkeys", ATTR{[dmi/id]product_name}=="*GZ302EA*", TAG+="uaccess"

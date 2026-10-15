@@ -1,0 +1,2 @@
+# Optional z13ctl one-shot access, restricted to GZ302EA rear lightbar HID.
+ACTION!="remove", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0b05", ATTRS{idProduct}=="18c6", ATTR{[dmi/id]product_name}=="*GZ302EA*", TAG+="uaccess"
