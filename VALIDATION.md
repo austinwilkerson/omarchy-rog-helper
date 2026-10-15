@@ -62,3 +62,11 @@ An isolated Wayland instance loaded the complete panel without color binding
 errors and verified that an in-memory popup text-color change updates the panel.
 This check does not change desktop theme files or restart the running shell.
 The original stable hardware results above remain the hardware validation scope.
+
+After the Edge upgrade completed and the desktop shell restarted, the installed
+0.1.1 popup was opened and visually inspected with the active theme. Header,
+text, button fills, borders and swatches rendered correctly. The restarted
+shell's logs contained no ROG Helper QML errors. Read-only backend checks found
+both lighting zones, all three power profiles and four sensor readings without
+errors. The button listener remained active and Hyprland reported no config
+errors. No additional hardware-setting changes or reboot were performed.
