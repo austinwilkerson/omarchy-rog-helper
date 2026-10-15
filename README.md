@@ -5,6 +5,10 @@ on **ROG Flow Z13 GZ302EA (2025)**, Omarchy 4.0.4, Hyprland 0.56.2,
 Quickshell 0.3.1 and asusctl 6.4.0. This is an early community plugin, not a claim
 of universal ROG support or G-Helper feature parity.
 
+![ROG Helper Lights, Power and Battery panels](preview.png)
+
+[Lights screenshot](docs/screenshots/lights.png) · [Power screenshot](docs/screenshots/power.png) · [Battery screenshot](docs/screenshots/battery.png)
+
 ## Controls
 
 - **Lights:** independent keyboard and rear lightbar, off/low/medium/high,
