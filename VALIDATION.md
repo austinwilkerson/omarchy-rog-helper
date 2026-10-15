@@ -49,3 +49,6 @@ Permission removal was checked on both device nodes. Removing udev rules/tags
 alone retained the active ACL; the final remover explicitly revokes the current
 user's ACL on the matching model-specific nodes. Empty user ACLs were confirmed
 before reinstalling both optional components.
+
+Final source was also validated after a clean Omarchy shell restart, including
+the native header toggle. No plugin load or QML runtime errors were observed.
