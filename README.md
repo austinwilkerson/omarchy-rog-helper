@@ -1,147 +1,114 @@
 # ROG Helper for Omarchy
 
-A compact native Omarchy shell popup for ASUS laptop controls. Initially tested
-on **ROG Flow Z13 GZ302EA (2025)**, Omarchy 4.0.4, Hyprland 0.56.2,
-Quickshell 0.3.1 and asusctl 6.4.0. This is an early community plugin, not a claim
-of universal ROG support or G-Helper feature parity.
+A compact control panel for ASUS laptops, built into the Omarchy shell. Manage
+lighting, power profiles and battery charging from the bar or the physical ROG
+button. The panel follows your current Omarchy theme.
 
 ![ROG Helper Lights, Power and Battery panels](preview.png)
 
-[Lights screenshot](docs/screenshots/lights.png) · [Power screenshot](docs/screenshots/power.png) · [Battery screenshot](docs/screenshots/battery.png)
+[Lights](docs/screenshots/lights.png) · [Power](docs/screenshots/power.png) · [Battery](docs/screenshots/battery.png)
 
-## Controls
+## Features
 
-- **Lights:** independent keyboard and rear lightbar, off/low/medium/high,
-  supported effects and RGB swatches. Keyboard state comes from asusd; the
-  GZ302EA rear lightbar uses one-shot z13ctl calls, with last-applied state clearly
-  labeled. No second RGB daemon is started.
-- **Power:** available power-profiles-daemon profiles, temperature and fan RPM.
-  Firmware controls the fan curves. No custom fan-curve editor, undervolting,
-  direct power-limit writes or GPU switching in this version.
-- **Battery:** 60%, 80% and 100% persistent charge limits through asusd.
-- **Physical ROG button:** optional model-specific listener for the verified
-  GZ302EA event. The listener ignores the recurring KEY_UNKNOWN firmware event.
+- **Lighting:** independent keyboard and rear-lightbar controls, brightness,
+  supported effects and color presets.
+- **Power:** Quiet, Balanced and Performance profiles where available, plus
+  temperature and fan-speed readings.
+- **Battery:** 60%, 80% and 100% charge limits.
+- **ROG button:** optional support for opening and closing the panel on GZ302EA.
 
-The popup uses Omarchy's `Panel`, `KeyboardPanel`, `ButtonGroup`, `PanelHero`,
-`Color` and `Style` APIs. It follows the active theme automatically and is a
-layer-shell popup inside the existing shell process. It works with bar click,
-Escape dismissal, Tab navigation and shell IPC.
+Open the panel from the bar, use Tab to navigate controls, and press Escape to
+close it. Fan curves remain firmware-managed. Custom fan curves, undervolting,
+power-limit tuning and GPU switching are outside the current release.
 
-## Dependencies
+## Compatibility
 
-Install and configure dependencies through your distribution first:
+Tested on **ASUS ROG Flow Z13 GZ302EA (2025)** with Omarchy 4.0.4,
+Hyprland 0.56.2, Quickshell 0.3.1, asusctl 6.4.0 and z13ctl 1.4.2.
+Other models are untested. The physical-button integration and z13ctl rear-bar
+integration are restricted to GZ302EA.
 
-- Omarchy 4 / Quickshell with the native plugin APIs above
-- Python 3 (standard library only), systemd `busctl`
-- `asusctl` / running `asusd` 6.4-compatible CLI and Aura D-Bus API
-- `power-profiles-daemon` / `powerprofilesctl` for power profiles
-- `z13ctl` 1.4.2-compatible CLI for the GZ302EA rear lightbar (optional; without
-  it the rear-bar controls are disabled with an explanation)
-- Optional button setup: systemd user services, udev, ACL tools (`setfacl`),
-  sudo for one-time rule setup/removal
+The plugin detects available lighting devices, modes, brightness levels and
+power profiles. Missing dependencies and unsupported controls are reported in
+the panel. Support depends on the laptop, firmware and installed backends.
 
-The plugin discovers Aura object paths and advertised modes/brightness at runtime;
-it never assumes USB bus numbers. Other models are untested. Missing backends and
-unsupported features are reported in the popup. An installed service can still
-report support for a feature its firmware does not implement correctly; report
-your exact model and versions before adding it to the tested list.
+## Requirements
 
-## Install
+| Component | Purpose |
+| --- | --- |
+| Omarchy 4 with Quickshell | Native shell plugin and popup |
+| Python 3 | Plugin backend; standard library only |
+| systemd `busctl` | Communication with asusd |
+| asusctl and a running asusd service | Keyboard lighting and battery charge limits; tested with 6.4.0 |
+| power-profiles-daemon and `powerprofilesctl` | Power profiles |
+| z13ctl | Optional GZ302EA rear-lightbar control; tested with 1.4.2 |
+| udev, ACL tools (`setfacl`) and sudo | Optional hardware-access setup and removal |
 
-From the published repository, use Omarchy's plugin manager:
+Install and configure these dependencies through your distribution or their
+upstream installation instructions before enabling the corresponding controls.
+
+## Installation
 
 ```sh
 omarchy plugin add https://github.com/austinwilkerson/omarchy-rog-helper.git --enable
 ```
 
-For a local checkout:
+For a local checkout, run `./scripts/install-local.sh` instead.
 
-```sh
-./scripts/install-local.sh
-```
-
-Click the bar icon, or run:
+Click the ROG Helper bar icon to open the panel, or run:
 
 ```sh
 omarchy-shell shell toggle rog-helper
 ```
 
-### Optional Z13 physical button
+### Optional: physical ROG button
 
-Only GZ302EA is accepted by this version. On the initial machine, pressing the
-side ROG button produced `MSC_SCAN 0xffff01` and `KEY_PROG3` (202) on
-**Asus WMI hotkeys**. Four physical presses were captured and the installed
-listener was confirmed to toggle the popup by the owner.
+On GZ302EA, enable the side button with:
 
 ```sh
 ~/.config/omarchy/plugins/rog-helper/scripts/install-button.sh
 ```
 
-This explicitly installs `/etc/udev/rules.d/70-rog-helper-button.rules` and a
-`rog-helper-button.service` user unit. The udev rule grants the active local seat
-access to **only the matching model's WMI input device**; it does not add the
-user to the input group. The listener runs as your user, never grabs a device,
-records no input, ignores unrelated frames and invokes only the fixed shell
-popup command. It reconnects when the input device changes.
+Setup installs a model-specific udev access rule and the
+`rog-helper-button.service` user service. The listener handles the ROG button,
+runs as your user and records no input. Access is limited to the matching WMI
+hotkey device. Setup requires sudo and leaves Hyprland configuration unchanged.
 
-On the initial machine that WMI source also emits scan `0xe9` / KEY_UNKNOWN
-about every two seconds. Keep the existing Hyprland suppression:
+### Optional: rear lightbar
 
-```lua
-hl.device({ name = "asus-wmi-hotkeys", enabled = false })
-```
-
-The installer does not change Hyprland. Reading evdev independently lets the
-listener accept the verified button while the compositor continues to ignore
-that noisy source. Do not re-enable it to use the popup. Other models need their
-own coordinated event capture and verification; do not guess an event number.
-
-### Optional GZ302EA rear lightbar
-
-Visual testing found that asusd 6.4 reports a rear-bar device and accepts writes
-without lighting it. For **GZ302EA only**, this plugin replaces that control path
-with the existing [z13ctl](https://github.com/dahui/z13ctl) CLI. Install z13ctl from
-its documented package/release process, then run:
+The GZ302EA rear lightbar requires [z13ctl](https://github.com/dahui/z13ctl).
+Install its CLI using the upstream instructions, then run:
 
 ```sh
 ~/.config/omarchy/plugins/rog-helper/scripts/install-lightbar.sh
 ```
 
-The setup installs only a model/vendor/product-matched udev `uaccess` rule for the
-rear-bar HID device. It does not run `z13ctl setup`, enable its daemon, modify
-fans/TDP, or grant the entire input group access. The CLI invokes `--device
-lightbar` explicitly, never a user-supplied hardware path.
+This grants access to the model's rear-bar HID device. ROG Helper uses targeted
+z13ctl commands for lighting; it does not require the z13ctl daemon or its fan
+and power-tuning features. Without the CLI, rear-bar controls remain disabled.
 
-On the initial machine the upstream v1.4.2 Linux amd64 archive was checked against
-its published SHA-256 and the CLI installed at `/usr/local/bin/z13ctl`, with its
-license under `/usr/local/share/licenses/z13ctl/`. No binary is bundled here.
-A checksum confirms release consistency, not independent publisher identity.
+The panel shows the rear bar's **last successfully applied settings**. If another
+tool or a suspend/resume cycle changes the lights, reapply the desired setting.
+Rear-bar state is saved in `$XDG_STATE_HOME/rog-helper/lightbar.json`, defaulting
+to `~/.local/state/rog-helper/lightbar.json`.
 
-Rear-bar state is **last successfully applied plugin state**, stored in
-`$XDG_STATE_HOME/rog-helper/lightbar.json` (default `~/.local/state/rog-helper/`).
-There is no authoritative firmware readback. Another tool or an asusd
-startup/resume action may change physical state; reapply a control if needed.
-The plugin does not poll-write settings or claim reboot/resume persistence.
+## Settings and persistence
 
-## Control ownership and persistence
+Keyboard lighting and charge limits are saved by asusd. Power profiles use
+power-profiles-daemon, shared with Omarchy's power panel. asusd may apply its
+configured AC or battery profile when the power source changes.
 
-Power selection uses the already running power-profiles-daemon, also used by the
-Omarchy power panel. asusd remains responsible for battery and keyboard lighting. The rear bar is
-targeted through one-shot z13ctl calls on GZ302EA. Both
-services were already installed on the initial machine; installation does not
-change their configuration or enable a competing daemon. asusd may reapply its
-configured AC/battery profile on a power transition. The popup states this and
-refreshes actual state every five seconds while open. Closing it stops polling.
+ROG Helper refreshes hardware readings every five seconds while the panel is
+open. Rear-bar settings are last-applied values rather than firmware readback;
+rear-bar persistence across reboot and suspend/resume is untested.
 
-Avoid running another RGB or tuning utility that writes the same settings at
-the same time. The installer does not stop other applications or change service
-ownership. Nothing here bypasses service permissions, writes sysfs directly,
-changes sudo policy or requires a reboot. The optional z13ctl backend handles its own
-HID writes; this plugin does not implement hardware packets.
+Use one utility at a time to change the same lighting or tuning settings. The
+plugin uses existing backends and preserves their service configuration.
 
-## Remove
+## Removal
 
-Remove the optional listener **before removing its files**:
+If you enabled either optional component, run its removal script before removing
+the plugin:
 
 ```sh
 ~/.config/omarchy/plugins/rog-helper/scripts/remove-button.sh
@@ -149,28 +116,43 @@ Remove the optional listener **before removing its files**:
 omarchy plugin remove rog-helper
 ```
 
-This removes the user service and both optional udev rules. z13ctl is an external
-dependency and is not removed automatically. The battery and keyboard lighting
-settings remain saved in asusd. Rear-bar state is left as last applied. Restore desired settings in the popup before
-removing it, or use `asusctl`. Existing Hyprland hotkey suppression is preserved. To remove the manually
-installed CLI on the initial machine, remove `/usr/local/bin/z13ctl` and
-`/usr/local/share/licenses/z13ctl/` with sudo only if no other tool needs them.
+The scripts remove the optional user service, udev rules and active device-access
+grants. External dependencies and saved settings are retained. Set your preferred
+charge limit and lighting before removal. Any existing Hyprland hotkey workaround
+is preserved.
 
-## Validation and reporting
+## Development and support
 
 ```sh
 python3 -m unittest discover -s tests -v
 omarchy plugin validate .
 ```
 
-See [VALIDATION.md](VALIDATION.md) for the actual hardware results and limitations,
-[RESEARCH.md](RESEARCH.md) for backend decisions and references, and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency licenses.
+See [validation results](VALIDATION.md), [backend research](RESEARCH.md) and
+[third-party notices](THIRD_PARTY_NOTICES.md) for technical details.
 
-Report model, kernel, Omarchy, asusctl versions, the failing control and its
-error. Do not attach raw input captures, serial numbers or complete system logs.
-Use a model-specific report; success on one Z13 does not establish other models.
+[Report an issue](https://github.com/austinwilkerson/omarchy-rog-helper/issues)
+with your laptop model, kernel, Omarchy and asusctl versions, the affected control
+and its error message. Remove serial numbers and other personal information from
+any logs you share.
 
 ## License
 
-MIT. Independent of ASUS, Omarchy and G-Helper. No ASUS/ROG artwork is bundled.
+[MIT](LICENSE). An independent community project, unaffiliated with ASUS,
+Omarchy or G-Helper.
+
+## Z13 troubleshooting: phantom hotkey events
+
+Some GZ302EA systems emit repeated `KEY_UNKNOWN` events from **Asus WMI hotkeys**,
+which can interfere with shortcuts. If you experience this, the following
+Omarchy/Hyprland Lua override disables that device in the compositor:
+
+```lua
+hl.device({ name = "asus-wmi-hotkeys", enabled = false })
+```
+
+Add it to `~/.config/hypr/input.lua`, then run `hyprctl reload` and
+`hyprctl configerrors` to check the configuration. This disables the hotkeys
+provided by that device; normal keyboard input uses separate devices. ROG
+Helper's optional button listener can still handle the side button while this
+override is active. If you already use the workaround, keep it enabled.
