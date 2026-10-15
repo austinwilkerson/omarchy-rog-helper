@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Io
-import qs.Commons
+// Qualify theme singletons to avoid QtQuick type-name collisions on newer Qt.
+import qs.Commons as Commons
 import qs.Ui
 
 Panel {
@@ -19,8 +20,8 @@ Panel {
     property string page: "Lights"
     property bool busy: actionProc.running
     readonly property var device: report.devices[zone] || null
-    readonly property color fg: Color.popups.text
-    readonly property string family: bar ? bar.fontFamily : Style.font.family
+    readonly property color fg: Commons.Color.popups.text
+    readonly property string family: bar ? bar.fontFamily : Commons.Style.font.family
     readonly property var swatches: ["#ff0000","#dc1644","#ff5000","#ff8655","#ff9500","#ffd800","#ffff00","#9aff00","#00e000","#00ee88","#88ffdd","#008b8b","#00eeee","#00b9ed","#168fff","#4868df","#1800ff","#100080","#550080","#9324df","#800080","#f000ef","#ff1493","#ff69b4","#ee82ee","#40dfce","#a52a2a","#ffffff"]
 
     function refresh() { if (!stateProc.running) stateProc.running = true }
@@ -60,7 +61,7 @@ Panel {
     component Label: Text {
         color: root.fg
         font.family: root.family
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Commons.Style.font.caption
         textFormat: Text.PlainText
     }
     component Section: PanelSectionHeader {
@@ -69,8 +70,8 @@ Panel {
     }
     component Choices: ButtonGroup {
         foreground: root.fg
-        background: Color.popups.background
-        accent: Color.accent
+        background: Commons.Color.popups.background
+        accent: Commons.Color.accent
         fontFamily: root.family
         enabled: !root.busy
     }
@@ -81,8 +82,8 @@ Panel {
         owner: root
         open: root.opened
         focusTarget: content
-        contentWidth: fittedContentWidth(Style.space(328))
-        contentHeight: fittedContentHeight(body.implicitHeight, Style.space(660))
+        contentWidth: fittedContentWidth(Commons.Style.space(328))
+        contentHeight: fittedContentHeight(body.implicitHeight, Commons.Style.space(660))
         Item {
             id: content
             anchors.fill: parent
@@ -97,12 +98,12 @@ Panel {
                 Column {
                     id: body
                     width: parent.width
-                    spacing: Style.space(14)
+                    spacing: Commons.Style.space(14)
                     PanelHero {
                         width: parent.width
                         title: "ROG Helper"
                         meta: root.report.model || "Detecting hardware…"
-                        iconComponent: Component { Text { text: "󰢮"; color: root.fg; font.family: root.family; font.pixelSize: Style.font.display } }
+                        iconComponent: Component { Text { text: "󰢮"; color: root.fg; font.family: root.family; font.pixelSize: Commons.Style.font.display } }
                         foreground: root.fg
                         fontFamily: root.family
                         trailingControl: Component {
@@ -126,7 +127,7 @@ Panel {
                     }
                     Column {
                         width: parent.width
-                        spacing: Style.space(12)
+                        spacing: Commons.Style.space(12)
                         visible: root.page === "Lights"
                         Label { text: "Independent · Control zones separately"; opacity: 0.7 }
                         Section { text: "ZONE" }
@@ -159,12 +160,12 @@ Panel {
                         Grid {
                             visible: !!root.device
                             columns: 7
-                            spacing: Style.space(8)
+                            spacing: Commons.Style.space(8)
                             Repeater {
                                 model: root.swatches
                                 Rectangle {
                                     required property string modelData
-                                    width: Style.space(36); height: width; radius: width / 2
+                                    width: Commons.Style.space(36); height: width; radius: width / 2
                                     activeFocusOnTab: true
                                     Keys.onSpacePressed: root.act(["color",root.device.path,modelData])
                                     Keys.onReturnPressed: root.act(["color",root.device.path,modelData])
@@ -180,7 +181,7 @@ Panel {
                         Label { width: parent.width; wrapMode: Text.WordWrap; opacity: 0.65; text: root.device && root.device.note ? root.device.note : "Modes reported by asusd · Changes persist through asusd" }
                     }
                     Column {
-                        width: parent.width; spacing: Style.space(12)
+                        width: parent.width; spacing: Commons.Style.space(12)
                         visible: root.page === "Power"
                         Section { text: "PERFORMANCE PROFILE" }
                         Choices {
@@ -198,14 +199,14 @@ Panel {
                         Label { width: parent.width; wrapMode: Text.WordWrap; text: "Fan curves: firmware managed. Custom curve editing and power-limit tuning deferred pending validation. GPU switching: unavailable in this version."; opacity: 0.65 }
                     }
                     Column {
-                        width: parent.width; spacing: Style.space(12)
+                        width: parent.width; spacing: Commons.Style.space(12)
                         visible: root.page === "Battery"
                         Section { text: "CHARGE LIMIT" }
                         Repeater {
                             model: root.report.batteries.filter(function(b) {return b.name.indexOf("BAT") === 0})
                             Column {
                                 required property var modelData
-                                width: parent.width; spacing: Style.space(12)
+                                width: parent.width; spacing: Commons.Style.space(12)
                                 Label { text: modelData.name + " · " + modelData.capacity + "% · " + modelData.status }
                                 Choices {
                                     width: parent.width
@@ -223,7 +224,7 @@ Panel {
                         width: parent.width; wrapMode: Text.Wrap
                         visible: text !== ""
                         text: root.error || (root.report.errors || []).join("\n") || (root.busy ? "Applying…" : root.notice)
-                        color: root.error ? Color.urgent : root.fg
+                        color: root.error ? Commons.Color.urgent : root.fg
                     }
                 }
             }

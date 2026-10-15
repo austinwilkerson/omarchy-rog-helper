@@ -25,7 +25,8 @@ power-limit tuning and GPU switching are outside the current release.
 
 Tested on **ASUS ROG Flow Z13 GZ302EA (2025)** with Omarchy 4.0.4,
 Hyprland 0.56.2, Quickshell 0.3.1, asusctl 6.4.0 and z13ctl 1.4.2.
-Other models are untested. The physical-button integration and z13ctl rear-bar
+Theme bindings also pass an isolated load and live-color check on Edge with
+Qt 6.12 and Quickshell 0.3.2. Other models are untested. The physical-button integration and z13ctl rear-bar
 integration are restricted to GZ302EA.
 
 The plugin detects available lighting devices, modes, brightness levels and
@@ -127,6 +128,10 @@ is preserved.
 python3 -m unittest discover -s tests -v
 omarchy plugin validate .
 ```
+
+For a theme-binding integration check in an active Omarchy Wayland session, run
+`./tests/check-qml.sh`. It uses an isolated instance and leaves the desktop theme
+unchanged.
 
 See [validation results](VALIDATION.md), [backend research](RESEARCH.md) and
 [third-party notices](THIRD_PARTY_NOTICES.md) for technical details.

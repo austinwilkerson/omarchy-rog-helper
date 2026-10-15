@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rog-helper",
   "name": "ROG Helper",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Austin Wilkerson and contributors",
   "license": "MIT",
   "description": "Native ASUS controls through asusd and power-profiles-daemon. Initially tested on Flow Z13 GZ302EA.",

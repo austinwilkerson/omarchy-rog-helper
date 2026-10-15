@@ -52,3 +52,13 @@ before reinstalling both optional components.
 
 Final source was also validated after a clean Omarchy shell restart, including
 the native header toggle. No plugin load or QML runtime errors were observed.
+
+## 0.1.1 — Edge theme compatibility
+
+On Omarchy Edge with Qt 6.12 / Quickshell 0.3.2, unqualified `Color` references
+failed to resolve the Omarchy singleton. Theme and style references now use the
+explicit `Commons` namespace, consistent with the installed shell components.
+An isolated Wayland instance loaded the complete panel without color binding
+errors and verified that an in-memory popup text-color change updates the panel.
+This check does not change desktop theme files or restart the running shell.
+The original stable hardware results above remain the hardware validation scope.
