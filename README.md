@@ -11,14 +11,21 @@ button. The panel follows your current Omarchy theme.
 ## Features
 
 - **Lighting:** independent keyboard and rear-lightbar controls, brightness,
-  supported effects and color presets.
+  supported effects, theme Accent/Text/Alert buttons, a custom color picker and
+  hex entry. The original preset palette is available under **Swatches**.
 - **Power:** Quiet, Balanced and Performance profiles where available, plus
   temperature and fan-speed readings.
 - **Battery:** 60%, 80% and 100% charge limits.
 - **ROG button:** optional support for opening and closing the panel on GZ302EA.
 
 Open the panel from the bar, use Tab to navigate controls, and press Escape to
-close it. Fan curves remain firmware-managed. Custom fan curves, undervolting,
+close it. In **Lights**, select Keyboard or Lightbar before choosing a color.
+Theme buttons apply the current theme color to that zone; they do not change
+hardware automatically when the desktop theme changes. The custom picker applies
+on release, and a typed `#RRGGBB` value applies with **Apply** or Enter.
+Brightness remains a separate hardware control.
+
+Fan curves remain firmware-managed. Custom fan curves, undervolting,
 power-limit tuning and GPU switching are outside the current release.
 
 ## Compatibility

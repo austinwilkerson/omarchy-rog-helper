@@ -1,0 +1,9 @@
+{
+  "accent": "Accent",
+  "foreground": "Text",
+  "urgent": "Alert",
+  "custom": "Custom",
+  "swatches": "Swatches",
+  "hex": "Custom color · #RRGGBB",
+  "apply": "Apply"
+}

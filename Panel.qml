@@ -22,7 +22,6 @@ Panel {
     readonly property var device: report.devices[zone] || null
     readonly property color fg: Commons.Color.popups.text
     readonly property string family: bar ? bar.fontFamily : Commons.Style.font.family
-    readonly property var swatches: ["#ff0000","#dc1644","#ff5000","#ff8655","#ff9500","#ffd800","#ffff00","#9aff00","#00e000","#00ee88","#88ffdd","#008b8b","#00eeee","#00b9ed","#168fff","#4868df","#1800ff","#100080","#550080","#9324df","#800080","#f000ef","#ff1493","#ff69b4","#ee82ee","#40dfce","#a52a2a","#ffffff"]
 
     function refresh() { if (!stateProc.running) stateProc.running = true }
     function act(args) {
@@ -157,26 +156,14 @@ Panel {
                             onChanged: function(value) { root.act(["mode",root.device.path,value]) }
                         }
                         Section { text: "COLOR"; visible: !!root.device }
-                        Grid {
+                        LedColorControl {
+                            width: parent.width
                             visible: !!root.device
-                            columns: 7
-                            spacing: Commons.Style.space(8)
-                            Repeater {
-                                model: root.swatches
-                                Rectangle {
-                                    required property string modelData
-                                    width: Commons.Style.space(36); height: width; radius: width / 2
-                                    activeFocusOnTab: true
-                                    Keys.onSpacePressed: root.act(["color",root.device.path,modelData])
-                                    Keys.onReturnPressed: root.act(["color",root.device.path,modelData])
-                                    color: modelData
-                                    border.width: root.device && root.device.color.toLowerCase() === modelData ? 2 : 0
-                                    border.color: root.fg
-                                    opacity: root.busy ? 0.6 : 1
-                                    TapHandler { enabled: !root.busy && root.device && root.device.available !== false; onTapped: root.act(["color",root.device.path,modelData]) }
-                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                                }
-                            }
+                            enabled: !root.busy && root.device && root.device.available !== false
+                            target: root.device ? root.device.path : ""
+                            currentColor: root.device ? root.device.color : "#4488ff"
+                            fontFamily: root.family
+                            onApplyColor: function(target, color) { root.act(["color", target, color]) }
                         }
                         Label { width: parent.width; wrapMode: Text.WordWrap; opacity: 0.65; text: root.device && root.device.note ? root.device.note : "Modes reported by asusd · Changes persist through asusd" }
                     }
