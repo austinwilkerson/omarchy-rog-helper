@@ -30,16 +30,15 @@ power-limit tuning and GPU switching are outside the current release.
 
 ## Compatibility
 
-Tested on **ASUS ROG Flow Z13 GZ302EA (2025)** with Omarchy 4.0.4,
-Hyprland 0.56.2, Quickshell 0.3.1, asusctl 6.4.0 and z13ctl 1.4.2.
-Theme bindings also pass an isolated load and live-color check on Edge with
-Qt 6.12 and Quickshell 0.3.2. Other models are untested. The physical-button integration and z13ctl rear-bar
-integration are restricted to GZ302EA.
+Verified on **Omarchy RC Channel (4.5.0-1)** with Hyprland 0.56.2 and
+Quickshell 0.3.2 on the **ASUS ROG Flow Z13 GZ302EA (2025)**. Hardware status
+reads, the running button service, all backend tests and isolated panel/theme/
+color-routing checks pass. This RC review did not change physical lighting or
+battery settings.
 
-Also verified on the **RC channel, Omarchy 4.5.0-1**, with Hyprland 0.56.2 and
-Quickshell 0.3.2: hardware status reads, the running button service, all backend
-tests and the isolated panel/theme/color-routing checks pass. The review did not
-change physical lighting or battery settings.
+Earlier hardware validation used Omarchy 4.0.4, Hyprland 0.56.2, Quickshell
+0.3.1, asusctl 6.4.0 and z13ctl 1.4.2. Other models are untested. The physical
+button and z13ctl rear-bar integrations remain restricted to GZ302EA.
 
 The plugin detects available lighting devices, modes, brightness levels and
 power profiles. Missing dependencies and unsupported controls are reported in
