@@ -36,9 +36,20 @@ Theme bindings also pass an isolated load and live-color check on Edge with
 Qt 6.12 and Quickshell 0.3.2. Other models are untested. The physical-button integration and z13ctl rear-bar
 integration are restricted to GZ302EA.
 
+Also verified on the **RC channel, Omarchy 4.5.0-1**, with Hyprland 0.56.2 and
+Quickshell 0.3.2: hardware status reads, the running button service, all backend
+tests and the isolated panel/theme/color-routing checks pass. The review did not
+change physical lighting or battery settings.
+
 The plugin detects available lighting devices, modes, brightness levels and
 power profiles. Missing dependencies and unsupported controls are reported in
 the panel. Support depends on the laptop, firmware and installed backends.
+
+The optional button installer always targets the installed plugin directory
+under `$XDG_CONFIG_HOME/omarchy/plugins/rog-helper` (normally `~/.config/...`).
+Running the installer from a development checkout does not make the service
+depend on that checkout. Moving or deleting a development folder leaves the
+installed button listener available.
 
 ## Requirements
 
