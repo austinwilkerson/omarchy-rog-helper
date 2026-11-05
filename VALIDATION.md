@@ -70,3 +70,13 @@ shell's logs contained no ROG Helper QML errors. Read-only backend checks found
 both lighting zones, all three power profiles and four sensor readings without
 errors. The button listener remained active and Hyprland reported no config
 errors. No additional hardware-setting changes or reboot were performed.
+
+## 0.1.4 — Stable 4.5 compatibility
+
+Verified on 2026-11-05 with Omarchy channel `stable`, package `4.5.0-3`,
+Hyprland 0.56.2 and Quickshell 0.3.2 on the same GZ302EA. All eight backend
+tests and the isolated panel/theme/picker/zone-routing fixture pass. Read-only
+backend checks report both lighting zones, power profiles, sensors and the
+battery charge limit without backend errors. The installed button service is
+active. This compatibility update does not change hardware settings or expand
+the physical hardware validation scope above.

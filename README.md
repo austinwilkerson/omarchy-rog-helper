@@ -30,10 +30,10 @@ power-limit tuning and GPU switching are outside the current release.
 
 ## Compatibility
 
-Verified on **Omarchy RC Channel (4.5.0-1)** with Hyprland 0.56.2 and
+Verified on **Omarchy Stable 4.5 (4.5.0-3)** with Hyprland 0.56.2 and
 Quickshell 0.3.2 on the **ASUS ROG Flow Z13 GZ302EA (2025)**. Hardware status
 reads, the running button service, all backend tests and isolated panel/theme/
-color-routing checks pass. This RC review did not change physical lighting or
+color-routing checks pass. This Stable review did not change physical lighting or
 battery settings.
 
 Earlier hardware validation used Omarchy 4.0.4, Hyprland 0.56.2, Quickshell
