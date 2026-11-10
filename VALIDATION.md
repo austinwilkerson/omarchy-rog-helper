@@ -22,6 +22,11 @@ queued during a read, a duplicate click, a successful readback and an action
 failure followed by successful readback. It also tests zone changes during a
 color gesture.
 
+For 0.3.1 on Omarchy Stable 4.5, the installed panel code queued a keyboard
+brightness change behind an in-flight read and confirmed the new hardware
+level. A second request restored the original level, which was confirmed
+independently through the backend.
+
 ## Passed
 
 - Omarchy manifest validation; plugin discovered, enabled and rendered in the
