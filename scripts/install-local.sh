@@ -10,7 +10,8 @@ if [[ -e "$target_dir" && "$source_dir" != "$target_dir" ]]; then
 fi
 if [[ "$source_dir" != "$target_dir" ]]; then
     mkdir -p "$target_dir"
-    cp "$source_dir"/{Panel.qml,manifest.json,backend.py,button_listener.py,README.md,LICENSE,RESEARCH.md,VALIDATION.md,THIRD_PARTY_NOTICES.md} "$target_dir/"
+    cp "$source_dir"/{Panel.qml,ColorPicker.qml,LedColorControl.qml,manifest.json,backend.py,button_listener.py,fnlock.py,fnlock.lua,README.md,LICENSE,RESEARCH.md,VALIDATION.md,THIRD_PARTY_NOTICES.md} "$target_dir/"
+    cp -r "$source_dir/i18n" "$target_dir/"
     cp -r "$source_dir/scripts" "$target_dir/"
 fi
 mkdir -p "$HOME/.local/state/rog-helper/backups"

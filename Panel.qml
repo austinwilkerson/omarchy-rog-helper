@@ -19,6 +19,7 @@ Panel {
     property int zone: 0
     property string page: "Lights"
     property bool busy: actionProc.running
+    readonly property var fnLock: report.fnlock || ({})
     readonly property var device: report.devices[zone] || null
     readonly property color fg: Commons.Color.popups.text
     readonly property string family: bar ? bar.fontFamily : Commons.Style.font.family
@@ -27,14 +28,23 @@ Panel {
     function act(args) {
         if (busy) return
         error = ""; notice = ""
-        actionProc.command = ["python3", Qt.resolvedUrl("backend.py").toString().replace("file://", "")].concat(args)
+        actionProc.command = ["python3", "-B", Qt.resolvedUrl("backend.py").toString().replace("file://", "")].concat(args)
         actionProc.running = true
     }
     onOpenedChanged: if (opened) refresh()
     Timer { interval: 5000; running: root.opened; repeat: true; onTriggered: root.refresh() }
+    FileView {
+        path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/rog-helper/fnlock/mode"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: {
+            reload()
+            if (root.opened) root.refresh()
+        }
+    }
     Process {
         id: stateProc
-        command: ["python3", Qt.resolvedUrl("backend.py").toString().replace("file://", ""), "status"]
+        command: ["python3", "-B", Qt.resolvedUrl("backend.py").toString().replace("file://", ""), "status"]
         stdout: StdioCollector { onStreamFinished: {
             try { root.report = JSON.parse(text); if (root.zone >= root.report.devices.length) root.zone = 0 }
             catch (e) { root.error = "Could not read hardware status" }
@@ -120,7 +130,11 @@ Panel {
                     }
                     Choices {
                         width: parent.width
-                        options: [{value:"Lights",label:"Lights"},{value:"Power",label:"Power"},{value:"Battery",label:"Battery"}]
+                        options: {
+                            var pages = [{value:"Lights",label:"Lights"},{value:"Power",label:"Power"},{value:"Battery",label:"Battery"}]
+                            if (root.fnLock.supported) pages.push({value:"Keyboard",label:"Keyboard"})
+                            return pages
+                        }
                         value: root.page
                         onChanged: function(value) { root.page = value }
                     }
@@ -206,6 +220,26 @@ Panel {
                             }
                         }
                         Label { width: parent.width; wrapMode: Text.WordWrap; opacity: 0.65; text: "Saved by asusd. A lower limit stops further charging; it does not discharge the battery." }
+                    }
+                    Column {
+                        width: parent.width
+                        spacing: Commons.Style.space(12)
+                        visible: root.page === "Keyboard"
+                        Section { text: "SOFTWARE FN LOCK" }
+                        Choices {
+                            width: parent.width
+                            enabled: !root.busy && root.fnLock.available === true
+                            options: [{value:"function",label:"Function keys"},{value:"media",label:"Media keys"}]
+                            value: root.fnLock.mode || ""
+                            onChanged: function(value) { root.act(["fnlock",value]) }
+                        }
+                        Label {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            text: root.fnLock.message || (root.fnLock.configured
+                                ? "Fn+Esc switches modes on the detachable keyboard. The firmware and Esc LED are independent."
+                                : "Optional setup is required. Run scripts/install-fnlock.sh from the installed ROG Helper folder.")
+                        }
                     }
                     Label {
                         width: parent.width; wrapMode: Text.Wrap
