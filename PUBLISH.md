@@ -1,7 +1,7 @@
 # Marketplace submission
 
-For the software Fn Lock update, complete the physical checks in
-[VALIDATION.md](VALIDATION.md) before tagging a release. Update the existing
+For the software Fn Lock update, record the physical checks and any untested
+hardware in [VALIDATION.md](VALIDATION.md) before tagging a release. Update the existing
 [verification request](https://github.com/omacom/omarchy-plugin-marketplace/issues/13875)
 to the released commit and describe the opt-in user config installer and
 remover in a separate comment. Standard plugin installation only adds the
