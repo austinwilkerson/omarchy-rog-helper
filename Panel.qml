@@ -20,9 +20,12 @@ Panel {
     property string page: "Lights"
     property bool busy: actionProc.running
     readonly property var fnLock: report.fnlock || ({})
+    readonly property var refreshRate: report.refresh || ({})
+    readonly property var powerLimits: report.powerLimits || ({})
     readonly property var device: report.devices[zone] || null
     readonly property color fg: Commons.Color.popups.text
     readonly property string family: bar ? bar.fontFamily : Commons.Style.font.family
+    Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
 
     function refresh() { if (!stateProc.running) stateProc.running = true }
     function act(args) {
@@ -54,7 +57,7 @@ Panel {
     Process {
         id: actionProc
         stdout: StdioCollector { onStreamFinished: {
-            try { var result = JSON.parse(text); if (!result.ok) root.error = result.error; else root.notice = "Applied" }
+            try { var result = JSON.parse(text); if (!result.ok) root.error = result.error; else root.notice = result.message || "Applied" }
             catch (e) { root.error = "Action returned no result" }
         } }
         onExited: root.refresh()
@@ -176,8 +179,11 @@ Panel {
                             enabled: !root.busy && root.device && root.device.available !== false
                             target: root.device ? root.device.path : ""
                             currentColor: root.device ? root.device.color : "#4488ff"
+                            followKeyboardTheme: !!root.device && root.device.name === "Keyboard"
+                            followedRole: followKeyboardTheme ? root.report.keyboardThemeRole || "" : ""
                             fontFamily: root.family
                             onApplyColor: function(target, color) { root.act(["color", target, color]) }
+                            onApplyThemeRole: function(target, role) { root.act(["keyboard-theme-role", target, role]) }
                         }
                         Label { width: parent.width; wrapMode: Text.WordWrap; opacity: 0.65; text: root.device && root.device.note ? root.device.note : "Modes reported by asusd · Changes persist through asusd" }
                     }
@@ -192,6 +198,33 @@ Panel {
                             onChanged: function(value) { root.act(["profile",value]) }
                         }
                         Label { width: parent.width; wrapMode: Text.WordWrap; opacity: 0.65; text: "Uses power-profiles-daemon. asusd may select its configured profile when AC power changes." }
+                        Column {
+                            width: parent.width
+                            spacing: Commons.Style.space(8)
+                            visible: root.fnLock.supported === true
+                            Section { text: strings.t("displayRefresh") }
+                            Choices {
+                                width: parent.width
+                                enabled: !root.busy && (root.refreshRate.available === true || root.refreshRate.enabled === true)
+                                options: [{value:"off",label:strings.t("refreshOff")},{value:"on",label:strings.t("refreshAuto")}]
+                                value: root.refreshRate.enabled ? "on" : "off"
+                                onChanged: function(value) { root.act(["auto-refresh",value]) }
+                            }
+                            Label {
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                opacity: 0.65
+                                text: root.refreshRate.message || strings.t("refreshSummary").arg(root.refreshRate.rate || "—")
+                            }
+                        }
+                        Section { visible: Object.keys(root.powerLimits).length > 0; text: strings.t("firmwarePowerLimits") }
+                        Repeater {
+                            model: ["PL1", "PL2", "PL3"].filter(key => root.powerLimits[key] !== undefined)
+                            Label {
+                                required property string modelData
+                                text: strings.t("powerLimit." + modelData).arg(root.powerLimits[modelData])
+                            }
+                        }
                         Section { text: "TEMPERATURES + FANS" }
                         Repeater {
                             model: root.report.sensors
@@ -217,6 +250,35 @@ Panel {
                                     onChanged: function(value) { root.act(["charge",value]) }
                                 }
                                 Label { text: modelData.limit === null ? "Charge limit unsupported" : "Current charge limit: " + modelData.limit + "%" }
+                                Button {
+                                    visible: root.report.chargeOnce === true && modelData.limit !== null
+                                    enabled: !root.busy && root.report.onBattery === false && Number(modelData.limit) < 100
+                                    text: strings.t("chargeOnce")
+                                    foreground: root.fg
+                                    fontFamily: root.family
+                                    focusable: true
+                                    bordered: true
+                                    onClicked: root.act(["charge-once"])
+                                }
+                                Label {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    visible: root.report.chargeOnce === true && modelData.limit !== null
+                                    opacity: 0.65
+                                    text: strings.t(root.report.onBattery === false ? "chargeOnceRestore" : "chargeOncePlugIn")
+                                }
+                                Label {
+                                    visible: modelData.watts != null
+                                    text: strings.t("batteryPower").arg(modelData.watts)
+                                }
+                                Label {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    visible: modelData.health != null
+                                    text: modelData.fullWh != null
+                                        ? strings.t("batteryCapacity").arg(modelData.fullWh).arg(modelData.designWh).arg(modelData.health)
+                                        : strings.t("batteryHealth").arg(modelData.health)
+                                }
                             }
                         }
                         Label { width: parent.width; wrapMode: Text.WordWrap; opacity: 0.65; text: "Saved by asusd. A lower limit stops further charging; it does not discharge the battery." }

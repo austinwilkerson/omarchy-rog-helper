@@ -60,4 +60,31 @@ class Validation(unittest.TestCase):
    with self.assertRaises(ValueError): backend.action(['color','z13ctl:lightbar','#0000ff'])
    run.assert_not_called()
 
+ def test_keyboard_text_follows_theme_and_manual_color_clears_following(self):
+  keyboard = {'path':'/keyboard','name':'Keyboard',
+              'effect':[0,0,[255,0,255],[0,0,0],'Med','Right']}
+  with tempfile.TemporaryDirectory() as tmp, ExitStack() as stack:
+   root = Path(tmp)
+   theme = root/'colors.toml'
+   theme.write_text('foreground = "#112233"\n')
+   stack.enter_context(patch.multiple(backend, STATE_DIR=root, THEME_COLORS=theme))
+   stack.enter_context(patch.object(backend,'aura_devices',return_value=[keyboard]))
+   install = stack.enter_context(patch.object(backend,'install_theme_hook'))
+   write = stack.enter_context(patch.object(backend,'set_property'))
+
+   backend.action(['keyboard-theme-role','/keyboard','foreground'])
+   install.assert_called_once()
+   self.assertEqual(backend.keyboard_theme_role(),'foreground')
+   theme.write_text('accent = "#7aa2f7"\nforeground = "#a9b1d6"\n')
+   # Omarchy has already applied its magenta keyboard override.
+   write.reset_mock()
+   backend.action(['theme-changed'])
+   write.assert_called_once_with('/keyboard','LedModeData','(uu(yyy)(yyy)ss)',
+                                0,0,169,177,214,0,0,0,'Med','Right')
+   backend.action(['color','/keyboard','#ff00ff'])
+   self.assertEqual(backend.keyboard_theme_role(),'')
+   write.reset_mock()
+   backend.action(['theme-changed'])
+   write.assert_not_called()
+
 if __name__=='__main__': unittest.main()

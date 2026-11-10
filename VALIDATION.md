@@ -112,3 +112,21 @@ backend reported an active Media keys map, exactly one Fn+Esc binding, and no
 backend or Hyprland configuration errors after reboot. The RK68 Plus was
 unavailable for a physical check. The configuration and keymap are scoped to
 the two verified Z13 keyboard interfaces.
+
+## 0.3.0 — Theme, battery and display controls
+
+The panel fixture replaces the active theme directory, confirms that Accent,
+Text and Alert update, and checks the dedicated keyboard preset appears only
+when supplied. Backend coverage verifies that a remembered keyboard role
+is applied after the stock keyboard color and that a manual choice clears it.
+
+On Shammah, the internal display switched between 60 Hz and 180 Hz at
+2560×1600. Resolution, scale, position, transform and color management matched
+the original values. The original 180 Hz rate was restored. The isolated
+Quickshell service test stayed idle until opt-in and reacted when the preference
+file first appeared.
+
+Read-only checks found battery power, full and design capacity, and the three
+firmware power limits. The live one-shot test started at an 80% charge cap,
+raised it to 100% with AC connected, and verified that asusd 6.5.0 restored
+80% after the owner unplugged the charger.

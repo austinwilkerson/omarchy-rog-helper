@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """ROG Helper: unprivileged clients of existing ASUS / power-profile services."""
 import concurrent.futures
+from contextlib import contextmanager
 import glob
 import html
 import json
@@ -13,12 +14,18 @@ import subprocess
 import sys
 from pathlib import Path
 import fnlock
+import power_state
 
 DEST = 'xyz.ljones.Asusd'
 IFACE = 'xyz.ljones.Aura'
+PLATFORM = 'xyz.ljones.Platform'
 MODES = {0: 'Static', 1: 'Breathe', 10: 'Pulse'}
-STATE_DIR = Path(os.environ.get('XDG_STATE_HOME', str(Path.home()/'.local/state'))) / 'rog-helper'
+STATE_DIR = power_state.STATE_DIR
 LIGHTBAR_STATE = STATE_DIR / 'lightbar.json'
+THEME_COLORS = Path.home()/'.local/state/omarchy/current/theme/colors.toml'
+THEME_HOOK = Path.home()/'.config/omarchy/hooks/theme-set.d/90-rog-helper-theme.sh'
+THEME_ROLES = {'accent': ('accent', 'color4'), 'foreground': ('foreground', 'color7'),
+               'urgent': ('red', 'color1')}
 Z13_MODES = {0:'static',1:'breathe',2:'cycle',3:'rainbow'}
 
 
@@ -136,8 +143,36 @@ def profiles():
     return {'profiles':re.findall(r'^\s*\*?\s*([a-z][a-z-]+):\s*$',text,re.M),'profile':run('powerprofilesctl','get')}
 
 
+def one_shot_supported():
+    try:
+        info = run('busctl', '--system', 'introspect', DEST, '/xyz/ljones', PLATFORM)
+        return re.search(r'(?m)^\.OneShotFullCharge\s+method\s', info) is not None
+    except (OSError, RuntimeError, subprocess.TimeoutExpired):
+        return False
+
+
+def charge_once():
+    if power_state.on_battery() is not False:
+        raise ValueError('Plug in the charger before starting a one-time charge.')
+    batteries = [p for p in power_state.POWER_SUPPLY.glob('BAT*')
+                 if read(p/'type') == 'Battery']
+    if len(batteries) != 1:
+        raise ValueError('Could not identify the internal battery.')
+    threshold = batteries[0]/'charge_control_end_threshold'
+    limit = power_state.number(threshold)
+    if limit is None or not 20 <= limit < 100:
+        raise ValueError('One-time charging needs a charge limit below 100%.')
+    # Call the same method as `asusctl battery oneshot` with no percent argument.
+    # asusd preserves the normal limit and restores it when AC is disconnected.
+    run('busctl', '--system', 'call', DEST, '/xyz/ljones', PLATFORM, 'OneShotFullCharge')
+    if power_state.number(threshold) != 100:
+        raise RuntimeError('The temporary 100% limit was not confirmed.')
+    return f'Charging to 100% once. Unplugging restores your {limit}% limit.'
+
+
 def status():
     result={'model':read('/sys/class/dmi/id/product_name') or 'Unknown model', 'errors':[], 'fnlock':fnlock.status()}
+    result['keyboardThemeRole'] = keyboard_theme_role()
     jobs={'devices':aura_devices,'power':profiles,'sensors':sensors}
     with concurrent.futures.ThreadPoolExecutor() as pool:
         futures={k:pool.submit(v) for k,v in jobs.items()}
@@ -150,7 +185,13 @@ def status():
     for battery in glob.glob('/sys/class/power_supply/*'):
         if read(battery+'/type')!='Battery': continue
         result['batteries'].append(dict(name=Path(battery).name,capacity=read(battery+'/capacity'),
-            status=read(battery+'/status'),limit=read(battery+'/charge_control_end_threshold')))
+            status=read(battery+'/status'),limit=read(battery+'/charge_control_end_threshold'),
+            **power_state.battery_readings(Path(battery))))
+    result['onBattery'] = power_state.on_battery()
+    result['chargeOnce'] = (sum(b['name'].startswith('BAT') for b in result['batteries']) == 1
+                            and one_shot_supported())
+    result['refresh'] = power_state.refresh_status(result['onBattery'])
+    result['powerLimits'] = power_state.power_limits()
     result['platformProfile']=read('/sys/firmware/acpi/platform_profile')
     return result
 
@@ -159,12 +200,94 @@ def set_property(path, prop, signature, *values):
     return run('busctl','--system','set-property',DEST,path,IFACE,prop,signature,*map(str,values))
 
 
+def keyboard_theme_role():
+    role = read(STATE_DIR/'keyboard-theme-role')
+    return role if role in THEME_ROLES else ''
+
+
+@contextmanager
+def keyboard_theme_lock():
+    STATE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE_DIR/'keyboard-theme.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def theme_role_color(role):
+    if role not in THEME_ROLES:
+        raise ValueError('Unsupported keyboard theme color')
+    colors = dict(re.findall(r"""(?m)^\s*(accent|foreground|red|color[147])\s*=\s*["']?(#[0-9a-fA-F]{6})\b""",
+                             read(THEME_COLORS) or ''))
+    preferred, fallback = THEME_ROLES[role]
+    color = colors.get(preferred) or colors.get(fallback)
+    if not color:
+        raise ValueError('The active theme is missing that color')
+    return color.lower()
+
+
+def install_theme_hook():
+    script = Path(__file__).resolve().parent/'scripts'/THEME_HOOK.name
+    if THEME_HOOK.is_symlink() or (THEME_HOOK.exists() and THEME_HOOK.read_bytes() != script.read_bytes()):
+        raise ValueError('A different ROG Helper theme hook already exists')
+    if not THEME_HOOK.exists():
+        run('omarchy', 'hook', 'install', 'theme-set', str(script))
+
+
+def apply_aura_effect(device, kind, value):
+    effect = list(device['effect'])
+    if kind == 'mode':
+        mode = int(value)
+        if mode not in [x['value'] for x in device['modes']]:
+            raise ValueError('Unsupported mode')
+        effect[0] = mode
+    else:
+        if not re.fullmatch('#[0-9a-fA-F]{6}', value):
+            raise ValueError('Invalid RGB color')
+        effect[2] = [int(value[i:i+2], 16) for i in (1, 3, 5)]
+    set_property(device['path'], 'LedModeData', '(uu(yyy)(yyy)ss)', effect[0], effect[1],
+                 *effect[2], *effect[3], effect[4], effect[5])
+
+
+def follow_keyboard_theme(path, role):
+    with keyboard_theme_lock():
+        devices = [d for d in aura_devices() if d['name'] == 'Keyboard']
+        if len(devices) != 1 or devices[0]['path'] != path:
+            raise ValueError('Theme following is available for the ASUS laptop keyboard')
+        color = theme_role_color(role)
+        install_theme_hook()
+        apply_aura_effect(devices[0], 'color', color)
+        fnlock.atomic_write(STATE_DIR/'keyboard-theme-role', role + '\n')
+
+
+def refresh_keyboard_theme():
+    if not keyboard_theme_role():
+        return
+    with keyboard_theme_lock():
+        role = keyboard_theme_role()
+        if not role:
+            return
+        keyboards = [d for d in aura_devices() if d['name'] == 'Keyboard']
+        if len(keyboards) != 1:
+            return
+        apply_aura_effect(keyboards[0], 'color', theme_role_color(role))
+
+
 def action(args):
     kind,*values=args
     if kind=='fnlock' and len(values)==1:
         return {'function': 'Function keys', 'media': 'Media keys'}[fnlock.change(values[0])]
     elif kind=='fnlock-hotkey' and len(values)==1:
         return fnlock_hotkey(values[0])
+    elif kind=='keyboard-theme-role' and len(values)==2:
+        follow_keyboard_theme(*values)
+    elif kind=='theme-changed' and not values:
+        refresh_keyboard_theme()
+    elif kind=='charge-once' and not values:
+        return charge_once()
+    elif kind=='auto-refresh' and len(values)==1:
+        power_state.change_refresh(values[0])
+    elif kind=='refresh-sync' and not values:
+        power_state.sync_refresh()
     elif kind=='profile' and len(values)==1:
         if values[0] not in status()['power']['profiles']: raise ValueError('Unsupported power profile')
         run('powerprofilesctl','set',values[0])
@@ -184,16 +307,17 @@ def action(args):
             level=int(value)
             if level not in device['brightnessLevels']: raise ValueError('Unsupported brightness')
             set_property(path,'Brightness','u',level)
+        elif device.get('name') == 'Keyboard':
+            with keyboard_theme_lock():
+                # Re-read after the lock in case a theme change updated the effect.
+                keyboard = next((d for d in aura_devices() if d['path'] == path), None)
+                if keyboard is None:
+                    raise ValueError('Aura device disappeared')
+                apply_aura_effect(keyboard, kind, value)
+                if kind == 'color':
+                    (STATE_DIR/'keyboard-theme-role').unlink(missing_ok=True)
         else:
-            effect=device['effect']
-            if kind=='mode':
-                mode=int(value)
-                if mode not in [x['value'] for x in device['modes']]: raise ValueError('Unsupported mode')
-                effect[0]=mode
-            else:
-                if not re.fullmatch('#[0-9a-fA-F]{6}',value): raise ValueError('Invalid RGB color')
-                effect[2]=[int(value[i:i+2],16) for i in (1,3,5)]
-            set_property(path,'LedModeData','(uu(yyy)(yyy)ss)',effect[0],effect[1],*effect[2],*effect[3],effect[4],effect[5])
+            apply_aura_effect(device, kind, value)
     else:
         raise ValueError('Unknown action or invalid arguments')
 
@@ -241,7 +365,7 @@ if __name__=='__main__':
             message = action(args)
             if notify_action:
                 notify(message or 'Software Fn Lock changed')
-            print(json.dumps({'ok':True}))
+            print(json.dumps({'ok':True, 'message':message}))
     except Exception as e:
         if notify_action:
             notify(str(e))
