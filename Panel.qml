@@ -14,11 +14,15 @@ Panel {
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
     property var report: ({devices: [], power: {profiles: []}, sensors: [], batteries: [], errors: []})
-    property string error: ""
+    property string actionError: ""
+    property string statusError: ""
+    readonly property string error: actionError || statusError
     property string notice: ""
     property int zone: 0
     property string page: "Lights"
-    property bool busy: actionProc.running
+    property string requestPhase: "idle"
+    property var pendingAction: null
+    readonly property bool busy: pendingAction !== null || requestPhase === "applying" || requestPhase === "confirming"
     readonly property var fnLock: report.fnlock || ({})
     readonly property var refreshRate: report.refresh || ({})
     readonly property var powerLimits: report.powerLimits || ({})
@@ -27,12 +31,45 @@ Panel {
     readonly property string family: bar ? bar.fontFamily : Commons.Style.font.family
     Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
 
-    function refresh() { if (!stateProc.running) stateProc.running = true }
+    function request(phase, args) {
+        requestPhase = phase
+        backend.command = ["python3", "-B", decodeURIComponent(String(Qt.resolvedUrl("backend.py")).replace(/^file:\/\//, ""))].concat(args)
+        backend.running = true
+    }
+    function refresh() {
+        if (requestPhase === "idle") request("reading", ["status"])
+    }
     function act(args) {
         if (busy) return
-        error = ""; notice = ""
-        actionProc.command = ["python3", "-B", Qt.resolvedUrl("backend.py").toString().replace("file://", "")].concat(args)
-        actionProc.running = true
+        actionError = ""; statusError = ""; notice = ""
+        if (requestPhase === "reading") pendingAction = args
+        else request("applying", args)
+    }
+    function finishRequest(code, output, diagnostics) {
+        if (requestPhase === "reading" && pendingAction !== null) {
+            var args = pendingAction
+            request("applying", args)
+            pendingAction = null
+            return
+        }
+        if (requestPhase === "applying") {
+            try {
+                var result = JSON.parse(output)
+                if (code === 0 && result.ok) notice = result.message || "Applied"
+                else actionError = result.error || diagnostics || "Could not apply hardware change"
+            } catch (e) { actionError = diagnostics || "Action returned no result" }
+            request("confirming", ["status"])
+            return
+        }
+        try {
+            var snapshot = JSON.parse(output)
+            if (code !== 0 || !snapshot || !Array.isArray(snapshot.devices) || !Array.isArray(snapshot.batteries)
+                || !snapshot.power || !Array.isArray(snapshot.power.profiles)) throw new Error()
+            report = snapshot
+            if (zone >= report.devices.length) zone = 0
+            statusError = ""
+        } catch (e) { statusError = diagnostics || "Could not read hardware status" }
+        requestPhase = "idle"
     }
     onOpenedChanged: if (opened) refresh()
     Timer { interval: 5000; running: root.opened; repeat: true; onTriggered: root.refresh() }
@@ -46,21 +83,14 @@ Panel {
         }
     }
     Process {
-        id: stateProc
-        command: ["python3", "-B", Qt.resolvedUrl("backend.py").toString().replace("file://", ""), "status"]
-        stdout: StdioCollector { onStreamFinished: {
-            try { root.report = JSON.parse(text); if (root.zone >= root.report.devices.length) root.zone = 0 }
-            catch (e) { root.error = "Could not read hardware status" }
-        } }
-        stderr: StdioCollector { onStreamFinished: if (text) root.error = text.trim() }
-    }
-    Process {
-        id: actionProc
-        stdout: StdioCollector { onStreamFinished: {
-            try { var result = JSON.parse(text); if (!result.ok) root.error = result.error; else root.notice = result.message || "Applied" }
-            catch (e) { root.error = "Action returned no result" }
-        } }
-        onExited: root.refresh()
+        id: backend
+        stdout: StdioCollector { id: response }
+        stderr: StdioCollector { id: diagnostics }
+        onExited: function(code) {
+            var output = response.text
+            var detail = diagnostics.text.trim()
+            Qt.callLater(root.finishRequest, code, output, detail)
+        }
     }
     BarIconButton {
         id: button

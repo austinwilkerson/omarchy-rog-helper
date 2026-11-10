@@ -3,6 +3,25 @@
 Initial hardware only: ASUS ROG Flow Z13 **GZ302EA**, Linux/Omarchy desktop.
 No other models tested. Version details and backend ownership: [RESEARCH.md](RESEARCH.md).
 
+## Runtime state audit
+
+| Workflow | Owner | States and transition rules |
+| --- | --- | --- |
+| Popup and controls | [Panel.qml](Panel.qml) | Opening starts a status read and periodic polling. Page and lighting-zone selection choose which controls consume the snapshot. |
+| Hardware requests | [Panel.qml](Panel.qml) | Idle → reading or applying. A write arriving during a read queues once and supersedes that read. Every write enters confirming before controls unlock. Action failures and status failures have separate lifetimes. |
+| Color entry | [LedColorControl.qml](LedColorControl.qml), [ColorPicker.qml](ColorPicker.qml) | Custom and Swatches share the selected zone. A picker gesture commits once on release. Changing the zone invalidates the gesture. |
+| Keyboard color source | [backend.py](backend.py) | Manual color clears the saved theme role. Following a role reapplies its current color after Omarchy's theme hook. The dedicated theme preset remains a distinct role. |
+| Rear lightbar | [backend.py](backend.py) | Availability depends on the model, access and z13ctl. The last applied setting advances after z13ctl succeeds under the lightbar lock. |
+| Function/media keys | [fnlock.py](fnlock.py), [fnlock.lua](fnlock.lua) | Setup and attachment determine availability. Changes serialize, verify the bindings and roll back on failure. Startup and hotplug restore the saved mode. |
+| Optional display refresh | [PowerService.qml](PowerService.qml), [power_state.py](power_state.py) | Disabled or enabled. Power changes and periodic checks coalesce before applying a supported internal display mode. The backend checks the persisted policy under lock. |
+| Battery limit and power profile | [backend.py](backend.py) | The relevant system services own the persistent limit and profile. asusd owns the temporary 100% charge and restores the normal limit on AC disconnect. |
+| Optional side button | [button_listener.py](button_listener.py) | Discover → read a complete input frame → toggle on the matching press. Disconnect returns to discovery. |
+
+`bash tests/check-qml.sh` uses a fake hardware backend to reproduce a write
+queued during a read, a duplicate click, a successful readback and an action
+failure followed by successful readback. It also tests zone changes during a
+color gesture.
+
 ## Passed
 
 - Omarchy manifest validation; plugin discovered, enabled and rendered in the

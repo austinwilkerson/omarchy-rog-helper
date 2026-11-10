@@ -79,13 +79,17 @@ Column {
         applyColor(target, color.toLowerCase())
     }
     function commitPicker(color) {
-        // A zone switch during a gesture must not send the old gesture to the new zone.
-        if (gestureTarget === target) choose(color)
+        var activeTarget = gestureTarget
+        gestureTarget = ""
+        if (activeTarget === target) choose(color)
     }
-    onTargetChanged: Qt.callLater(function() {
-        picker.sync(Qt.color(root.shownColor))
-        hex.text = root.shownColor
-    })
+    onTargetChanged: {
+        gestureTarget = ""
+        Qt.callLater(function() {
+            picker.sync(Qt.color(root.shownColor))
+            hex.text = root.shownColor
+        })
+    }
     component ThemeColorButton: Button {
         required property color themeColor
         property string themeRole: ""

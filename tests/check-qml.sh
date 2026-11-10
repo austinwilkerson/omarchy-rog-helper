@@ -11,6 +11,25 @@ ln -s "$shell_dir/Ui" "$check_dir/Ui"
 mkdir -p "$check_dir/Plugin"
 cp "$plugin_dir/Panel.qml" "$plugin_dir/ColorPicker.qml" "$plugin_dir/LedColorControl.qml" "$check_dir/Plugin/"
 cp -r "$plugin_dir/i18n" "$check_dir/Plugin/"
+cat > "$check_dir/Plugin/backend.py" <<'PY'
+import json
+from pathlib import Path
+import sys
+import time
+
+state = Path(__file__).with_name("state")
+if sys.argv[1] == "status":
+    if not state.exists():
+        time.sleep(.25)
+    print(json.dumps({"devices": [], "batteries": [], "power": {"profiles": []},
+                      "value": state.read_text() if state.exists() else "old"}))
+elif sys.argv[1] == "apply":
+    state.write_text("new")
+    print(json.dumps({"ok": True, "message": "Fixture applied"}))
+else:
+    print(json.dumps({"ok": False, "error": "Fixture failure"}))
+    sys.exit(1)
+PY
 mkdir -p "$check_dir/current/theme" "$check_dir/next-theme"
 printf 'accent = "#385bab"\nforeground = "#c4d5ed"\nred = "#ee3366"\n' > "$check_dir/current/theme/colors.toml"
 printf '#FF00FF\n' > "$check_dir/current/theme/keyboard.rgb"
@@ -34,7 +53,42 @@ ShellRoot {
     property var applied: []
     property var appliedRoles: []
     property int pickerCommits: 0
-    Plugin.Panel { id: panel }
+    property bool themeChecked: false
+    property bool requestChecked: false
+    function finishIfChecked() { if (themeChecked && requestChecked) Qt.quit() }
+    Plugin.Panel {
+        id: panel
+        onReportChanged: if (report.value === "old") throw new Error("Pre-action status leaked")
+    }
+    Timer {
+        property int step: 0
+        interval: 50
+        repeat: true
+        running: true
+        onTriggered: {
+            if (step === 0) {
+                panel.refresh()
+                panel.act(["apply"])
+                panel.act(["duplicate"])
+                if (!panel.busy || panel.requestPhase !== "reading") throw new Error("Action was not queued")
+                step++
+            } else if (!panel.busy && panel.requestPhase === "idle") {
+                if (step === 1) {
+                    if (panel.report.value !== "new" || panel.notice !== "Fixture applied" || panel.error)
+                        throw new Error("Write did not get a fresh, successful readback: " + panel.error)
+                    panel.act(["fail"])
+                    step++
+                } else {
+                    if (panel.report.value !== "new" || panel.error !== "Fixture failure")
+                        throw new Error("Readback swallowed the action failure: " + panel.error)
+                    console.log("ROG_REQUEST_ORDERING_OK")
+                    requestChecked = true
+                    stop()
+                    finishIfChecked()
+                }
+            }
+        }
+    }
     Plugin.LedColorControl {
         id: colors
         width: 350
@@ -61,6 +115,11 @@ ShellRoot {
             colors.target = "z13ctl:lightbar"
             colors.commitPicker("#ff0000")
             if (applied.length !== 1) throw new Error("Old gesture reached new zone")
+            colors.gestureTarget = colors.target
+            colors.target = "/test/keyboard"
+            colors.target = "z13ctl:lightbar"
+            colors.commitPicker("#ff0000")
+            if (applied.length !== 1) throw new Error("Switching away and back revived an old gesture")
             Commons.Color.accent = "#abcdef"
             colors.choose(colors.hexOf(Commons.Color.accent))
             if (applied.length !== 2 || applied[1][0] !== "z13ctl:lightbar" || applied[1][1] !== "#abcdef") throw new Error("Theme lightbar routing failed")
@@ -124,15 +183,17 @@ ShellRoot {
             if (appliedRoles.length !== 1 || appliedRoles[0][0] !== "/test/keyboard" || appliedRoles[0][1] !== "foreground")
                 throw new Error("Keyboard Text preset did not send its theme role")
             console.log("ROG_THEME_DIRECTORY_SWAP_OK")
-            Qt.quit()
+            themeChecked = true
+            finishIfChecked()
         }
     }
 }
 QML
-timeout 15 quickshell -p "$check_dir" --no-duplicate > "$check_dir/check.log" 2>&1
+timeout 15 quickshell -p "$check_dir" --no-duplicate > "$check_dir/check.log" 2>&1 || { cat "$check_dir/check.log"; exit 1; }
 cat "$check_dir/check.log"
 rg -q 'ROG_COLOR_PICKER_AND_ZONE_ROUTING_OK' "$check_dir/check.log"
 rg -q 'ROG_THEME_DIRECTORY_SWAP_OK' "$check_dir/check.log"
-if rg -q 'TypeError|ReferenceError|Unable to assign|Failed to load configuration' "$check_dir/check.log"; then
+rg -q 'ROG_REQUEST_ORDERING_OK' "$check_dir/check.log"
+if rg -q 'Error:|Unable to assign|Failed to load configuration' "$check_dir/check.log"; then
     exit 1
 fi
