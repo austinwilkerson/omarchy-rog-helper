@@ -14,15 +14,24 @@ button. The panel follows your current Omarchy theme.
   supported effects, theme Accent/Text/Alert buttons, a custom color picker and
   hex entry. The original preset palette is available under **Swatches**.
 - **Power:** Quiet, Balanced and Performance profiles where available, plus
-  temperature and fan-speed readings.
-- **Battery:** 60%, 80% and 100% charge limits.
+  temperature, fan-speed and firmware power-limit readings. The GZ302EA can
+  switch its built-in screen between 60 Hz on battery and 180 Hz on AC.
+- **Battery:** 60%, 80% and 100% charge limits, a one-time charge to 100%,
+  battery power and capacity compared with design capacity.
 - **Keyboard:** optional software Fn Lock for the GZ302EA detachable keyboard.
 - **ROG button:** optional support for opening and closing the panel on GZ302EA.
 
 Open the panel from the bar, use Tab to navigate controls, and press Escape to
 close it. In **Lights**, select Keyboard or Lightbar before choosing a color.
-Theme buttons apply the current theme color to that zone; they do not change
-hardware automatically when the desktop theme changes. The custom picker applies
+Choose **Accent**, **Text**, or **Alert** for the keyboard to follow that
+color role as the theme changes. ROG Helper installs a user theme hook on the
+first selection. It applies your chosen role after Omarchy's keyboard retint,
+including themes with a dedicated keyboard color. A custom color, swatch or
+**Theme keyboard color** preset switches the keyboard back to manual selection.
+The lightbar applies presets when clicked.
+
+Themes with a dedicated keyboard color, such as Tokyo Night, show it as the
+**Theme keyboard color** preset. The custom picker applies
 on release, and a typed `#RRGGBB` value applies with **Apply** or Enter.
 Brightness remains a separate hardware control.
 
@@ -60,6 +69,7 @@ installed button listener available.
 | systemd `busctl` | Communication with asusd |
 | asusctl and a running asusd service | Keyboard lighting and battery charge limits; tested with 6.4.0 |
 | power-profiles-daemon and `powerprofilesctl` | Power profiles |
+| wlr-randr | Optional automatic refresh rate on the GZ302EA |
 | z13ctl | Optional GZ302EA rear-lightbar control; tested with 1.4.2 |
 | udev, ACL tools (`setfacl`) and sudo | Optional hardware-access setup and removal |
 
@@ -155,6 +165,20 @@ Removal restores those original rules and leaves the original flag available.
 
 ## Settings and persistence
 
+In **Battery**, use **Charge to 100% once** while plugged in with a lower
+charge cap. This uses asusd's one-shot charge operation. Unplugging the
+charger restores your usual cap, including if you unplug before reaching 100%.
+The button is available when asusd exposes this operation.
+
+In **Power → Display refresh rate**, choose **Automatic** to use 60 Hz on
+battery and 180 Hz on AC. The internal panel needs both rates at its current
+resolution. Install `wlr-randr` for this optional feature. **Manual** stops
+automatic switching and leaves the display at its current rate.
+
+Battery power is the rate reported by the battery, and capacity is compared
+with the battery's design capacity. Firmware power limits show the available
+ASUS PL1, PL2 and PL3 readings for the active profile.
+
 Keyboard lighting and charge limits are saved by asusd. Power profiles use
 power-profiles-daemon, shared with Omarchy's power panel. asusd may apply its
 configured AC or battery profile when the power source changes.
@@ -177,6 +201,11 @@ the plugin:
 ~/.config/omarchy/plugins/rog-helper/scripts/remove-lightbar.sh
 omarchy plugin remove rog-helper
 ```
+
+If you used keyboard theme following, remove its user hook with
+`rm ~/.config/omarchy/hooks/theme-set.d/90-rog-helper-theme.sh`. The saved role
+is under `$XDG_STATE_HOME/rog-helper/keyboard-theme-role` (usually
+`~/.local/state/rog-helper/keyboard-theme-role`).
 
 The Fn Lock remover restores the prior Hyprland input rules and shortcut.
 The button and lightbar scripts remove the optional user service, udev rules and active device-access
