@@ -101,5 +101,8 @@ Local checks on the GZ302EA with Omarchy Stable 4.5.0-3 and Hyprland 0.56.2:
 
 The owner confirmed the guided physical test of Fn+Esc, the panel selector,
 F6 screenshot capture, F9 Display and F11 keyboard backlight in Media keys mode.
-Complete the remaining F-key actions, the RK68 Plus, detachable keyboard
-reconnect, a fresh login, the ROG side button and Super shortcuts before release.
+In follow-up use, the owner reported that the media keys were working and
+confirmed dictation with F9 in Function keys mode. They also reported access
+to the mode selector from the side-button popup. Complete the RK68 Plus,
+detachable keyboard reconnect, fresh login and Super shortcut checks before
+release.
