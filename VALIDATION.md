@@ -99,8 +99,7 @@ Local checks on the GZ302EA with Omarchy Stable 4.5.0-3 and Hyprland 0.56.2:
 - Backend tests cover failed live changes and config reload rollback.
   The existing Quickshell theme and color checks pass.
 
-Physical checks are separate. Before releasing, check Fn+Esc and the panel
-together, F1–F12 behavior (especially Print on F6), the RK68 Plus, detachable
-keyboard reconnect, a fresh login, the ROG side button and Super shortcuts.
-The backend and config checks do not actuate brightness, radio or power-profile
-hotkeys.
+The owner confirmed the guided physical test of Fn+Esc, the panel selector,
+F6 screenshot capture, F9 Display and F11 keyboard backlight in Media keys mode.
+Complete the remaining F-key actions, the RK68 Plus, detachable keyboard
+reconnect, a fresh login, the ROG side button and Super shortcuts before release.
