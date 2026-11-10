@@ -80,3 +80,27 @@ backend checks report both lighting zones, power profiles, sensors and the
 battery charge limit without backend errors. The installed button service is
 active. This compatibility update does not change hardware settings or expand
 the physical hardware validation scope above.
+
+## Software Fn Lock review candidate
+
+Local checks on the GZ302EA with Omarchy Stable 4.5.0-3 and Hyprland 0.56.2:
+
+- Generated and compiled media keymaps for US with Omarchy's Compose options
+  and German `nodeadkeys` with `compose:caps`. The German test checks the
+  original letter and Compose definitions alongside the remapped keys.
+- Migrated the existing Media keys mode. Both Z13 keyboard interfaces reported
+  the generated keymap and Hyprland reported one Fn+Esc binding.
+- Selected Function keys and toggled back through the installed backend.
+  Both interfaces reported the matching live map and saved state each time.
+  A Hyprland reload reapplied Media keys without configuration errors.
+- Reran setup, removed it and compared the restored input and bindings files
+  to the original backups byte for byte. Reinstalled and confirmed the saved
+  mode, WMI suppression and active side-button service.
+- Backend tests cover failed live changes and config reload rollback.
+  The existing Quickshell theme and color checks pass.
+
+Physical checks are separate. Before releasing, check Fn+Esc and the panel
+together, F1–F12 behavior (especially Print on F6), the RK68 Plus, detachable
+keyboard reconnect, a fresh login, the ROG side button and Super shortcuts.
+The backend and config checks do not actuate brightness, radio or power-profile
+hotkeys.

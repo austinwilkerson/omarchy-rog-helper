@@ -2,6 +2,7 @@
 """ROG Helper: unprivileged clients of existing ASUS / power-profile services."""
 import concurrent.futures
 import glob
+import html
 import json
 import os
 import shutil
@@ -224,7 +225,7 @@ def fnlock_hotkey(key):
 
 def notify(message):
     try:
-        subprocess.run(['notify-send', 'ROG Helper', message], timeout=2, check=False)
+        subprocess.run(['notify-send', 'ROG Helper', html.escape(message)], timeout=2, check=False)
     except (OSError, subprocess.TimeoutExpired):
         pass
 
