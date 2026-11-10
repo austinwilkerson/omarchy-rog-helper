@@ -16,6 +16,7 @@ button. The panel follows your current Omarchy theme.
 - **Power:** Quiet, Balanced and Performance profiles where available, plus
   temperature and fan-speed readings.
 - **Battery:** 60%, 80% and 100% charge limits.
+- **Keyboard:** optional software Fn Lock for the GZ302EA detachable keyboard.
 - **ROG button:** optional support for opening and closing the panel on GZ302EA.
 
 Open the panel from the bar, use Tab to navigate controls, and press Escape to
@@ -110,6 +111,48 @@ tool or a suspend/resume cycle changes the lights, reapply the desired setting.
 Rear-bar state is saved in `$XDG_STATE_HOME/rog-helper/lightbar.json`, defaulting
 to `~/.local/state/rog-helper/lightbar.json`.
 
+### Optional: Z13 software Fn Lock
+
+On Omarchy 4.5 with the Hyprland Lua configuration, attach the GZ302EA keyboard
+and run this from your graphical session:
+
+```sh
+~/.config/omarchy/plugins/rog-helper/scripts/install-fnlock.sh
+```
+
+The setup uses Python 3 and `xkbcli` (from `libxkbcommon` on Arch). It generates
+a media keymap from your configured XKB layout, variant and options. Setup
+accepts a single layout and asks you to review conflicting device rules,
+shortcuts, custom keymap files or multiple layouts. If you change your layout,
+remove and set up Fn Lock again to generate a matching media keymap.
+
+Use **Fn+Esc** or the **Keyboard** tab to select **Function keys** or
+**Media keys**. The setting is saved and reapplied on reload and login.
+It applies to the detachable keyboard's two verified device names. This
+software mode is independent of the firmware's Fn behavior and Esc LED.
+
+| Key in Media keys mode | Action |
+| --- | --- |
+| F1–F3 | Mute, volume down, volume up |
+| F4 | Mute microphone |
+| F5 | Cycle available power profiles |
+| F6 | Open Omarchy screenshot capture |
+| F7–F8 | Display brightness down/up |
+| F9 | Open Omarchy Display controls |
+| F10 | Toggle touchpad |
+| F11 | Cycle keyboard backlight brightness |
+| F12 | Toggle airplane mode through the user's existing rfkill access |
+
+F11 uses Omarchy's keyboard backlight action. Manage the rear lightbar in
+**Lights**. F12 blocks all radios when any are enabled and unblocks them on the
+next press. Function keys mode lets your regular F-key bindings work, including
+a custom F9 dictation shortcut.
+
+Setup is opt-in and runs as your user. It backs up the two Hyprland files it
+checks under `$XDG_STATE_HOME/rog-helper/fnlock/` (usually `~/.local/state`).
+It recognizes the documented early Z13 setup and imports the old flag's mode.
+Removal restores those original rules and leaves the original flag available.
+
 ## Settings and persistence
 
 Keyboard lighting and charge limits are saved by asusd. Power profiles use
@@ -125,16 +168,18 @@ plugin uses existing backends and preserves their service configuration.
 
 ## Removal
 
-If you enabled either optional component, run its removal script before removing
+If you enabled an optional component, run its removal script before removing
 the plugin:
 
 ```sh
+~/.config/omarchy/plugins/rog-helper/scripts/remove-fnlock.sh
 ~/.config/omarchy/plugins/rog-helper/scripts/remove-button.sh
 ~/.config/omarchy/plugins/rog-helper/scripts/remove-lightbar.sh
 omarchy plugin remove rog-helper
 ```
 
-The scripts remove the optional user service, udev rules and active device-access
+The Fn Lock remover restores the prior Hyprland input rules and shortcut.
+The button and lightbar scripts remove the optional user service, udev rules and active device-access
 grants. External dependencies and saved settings are retained. Set your preferred
 charge limit and lighting before removal. Any existing Hyprland hotkey workaround
 is preserved.

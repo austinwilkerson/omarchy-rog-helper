@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import fnlock
 
 DEST = 'xyz.ljones.Asusd'
 IFACE = 'xyz.ljones.Aura'
@@ -129,11 +130,13 @@ def sensors():
     return values
 
 
+def profiles():
+    text=run('powerprofilesctl','list')
+    return {'profiles':re.findall(r'^\s*\*?\s*([a-z][a-z-]+):\s*$',text,re.M),'profile':run('powerprofilesctl','get')}
+
+
 def status():
-    result={'model':read('/sys/class/dmi/id/product_name') or 'Unknown model', 'errors':[]}
-    def profiles():
-        text=run('powerprofilesctl','list')
-        return {'profiles':re.findall(r'^\s*\*?\s*([a-z][a-z-]+):\s*$',text,re.M),'profile':run('powerprofilesctl','get')}
+    result={'model':read('/sys/class/dmi/id/product_name') or 'Unknown model', 'errors':[], 'fnlock':fnlock.status()}
     jobs={'devices':aura_devices,'power':profiles,'sensors':sensors}
     with concurrent.futures.ThreadPoolExecutor() as pool:
         futures={k:pool.submit(v) for k,v in jobs.items()}
@@ -157,7 +160,11 @@ def set_property(path, prop, signature, *values):
 
 def action(args):
     kind,*values=args
-    if kind=='profile' and len(values)==1:
+    if kind=='fnlock' and len(values)==1:
+        return {'function': 'Function keys', 'media': 'Media keys'}[fnlock.change(values[0])]
+    elif kind=='fnlock-hotkey' and len(values)==1:
+        return fnlock_hotkey(values[0])
+    elif kind=='profile' and len(values)==1:
         if values[0] not in status()['power']['profiles']: raise ValueError('Unsupported power profile')
         run('powerprofilesctl','set',values[0])
     elif kind=='charge' and len(values)==1:
@@ -190,12 +197,52 @@ def action(args):
         raise ValueError('Unknown action or invalid arguments')
 
 
-if __name__=='__main__':
+def fnlock_hotkey(key):
+    if not fnlock.supported() or not fnlock.SETUP.is_file():
+        raise RuntimeError('Optional Z13 Fn Lock is not set up.')
+    with fnlock.lock():
+        fnlock.check_setup()
+        fnlock.check_applied('media', require_keyboard=True)
+        if key == 'profile':
+            power = profiles()
+            choices = [p for p in ('power-saver', 'balanced', 'performance') if p in power['profiles']]
+            if not choices:
+                raise RuntimeError('No supported power profiles are available.')
+            current = choices.index(power['profile']) if power['profile'] in choices else -1
+            target = choices[(current + 1) % len(choices)]
+            run('powerprofilesctl', 'set', target)
+            return 'Power profile: ' + target
+        if key == 'airplane':
+            radios = json.loads(run('rfkill', '--json'))['rfkilldevices']
+            if not radios:
+                raise RuntimeError('No wireless radios are available.')
+            block = any(radio['soft'] == 'unblocked' for radio in radios)
+            run('rfkill', 'block' if block else 'unblock', 'all')
+            return 'Airplane mode on' if block else 'Airplane mode off'
+        raise ValueError('Unknown Fn Lock hotkey')
+
+
+def notify(message):
     try:
-        if sys.argv[1:]==['status']: print(json.dumps(status()))
+        subprocess.run(['notify-send', 'ROG Helper', message], timeout=2, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+if __name__=='__main__':
+    args = sys.argv[1:]
+    notify_action = args == ['fnlock', 'toggle', '--notify'] or args[:1] == ['fnlock-hotkey']
+    try:
+        if args==['status']: print(json.dumps(status()))
         else:
-            action(sys.argv[1:])
+            if args == ['fnlock', 'toggle', '--notify']:
+                args.pop()
+            message = action(args)
+            if notify_action:
+                notify(message or 'Software Fn Lock changed')
             print(json.dumps({'ok':True}))
     except Exception as e:
+        if notify_action:
+            notify(str(e))
         print(json.dumps({'ok':False,'error':str(e)}))
         sys.exit(1)
