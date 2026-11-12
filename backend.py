@@ -10,8 +10,11 @@ import shutil
 import tempfile
 import fcntl
 import re
+import selectors
+import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 import fnlock
 import power_state
@@ -35,7 +38,7 @@ def z13_binary():
 
 def lightbar_saved():
     try:
-        state=json.loads(LIGHTBAR_STATE.read_text())
+        state=json.loads(read(LIGHTBAR_STATE, limit=4096) or '')
         if state['brightness'] not in (0,1,2,3) or state['mode'] not in Z13_MODES or not re.fullmatch('#[0-9a-fA-F]{6}',state['color']):
             raise ValueError('Invalid saved state')
         return state
@@ -92,11 +95,43 @@ def run(*args):
     return p.stdout.strip()
 
 
-def read(path):
+def read(path, limit=65536):
     try:
-        return Path(path).read_text().strip()
-    except OSError:
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOCTTY), 'rb') as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                return None
+            data = stream.read(limit + 1)
+        return data.decode('utf-8').strip() if len(data) <= limit else None
+    except (OSError, UnicodeError):
         return None
+
+
+def clipboard_color():
+    """Read one explicit paste outside the shell, with bounded bytes and time."""
+    deadline = time.monotonic() + 1
+    with subprocess.Popen(['wl-paste', '--no-newline', '--type', 'text'],
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as child:
+        try:
+            with selectors.DefaultSelector() as selector:
+                selector.register(child.stdout, selectors.EVENT_READ)
+                data = bytearray()
+                while len(data) <= 7:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0 or not selector.select(remaining):
+                        return None
+                    chunk = os.read(child.stdout.fileno(), 8 - len(data))
+                    if not chunk:
+                        if child.wait(timeout=max(0, deadline - time.monotonic())) == 0:
+                            if re.fullmatch(rb'#[0-9a-fA-F]{6}', data):
+                                return data.decode('ascii').lower()
+                        return None
+                    data.extend(chunk)
+        except subprocess.TimeoutExpired:
+            return None
+        finally:
+            if child.poll() is None:
+                child.kill()
+    return None
 
 
 def aura_devices():
@@ -201,7 +236,7 @@ def set_property(path, prop, signature, *values):
 
 
 def keyboard_theme_role():
-    role = read(STATE_DIR/'keyboard-theme-role')
+    role = read(STATE_DIR/'keyboard-theme-role', limit=32)
     return role if role in THEME_ROLES else ''
 
 
@@ -359,6 +394,7 @@ if __name__=='__main__':
     notify_action = args == ['fnlock', 'toggle', '--notify'] or args[:1] == ['fnlock-hotkey']
     try:
         if args==['status']: print(json.dumps(status()))
+        elif args==['clipboard-color']: print(clipboard_color() or '')
         else:
             if args == ['fnlock', 'toggle', '--notify']:
                 args.pop()

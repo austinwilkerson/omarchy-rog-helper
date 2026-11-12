@@ -33,7 +33,7 @@ Panel {
 
     function request(phase, args) {
         requestPhase = phase
-        backend.command = ["python3", "-B", decodeURIComponent(String(Qt.resolvedUrl("backend.py")).replace(/^file:\/\//, ""))].concat(args)
+        backend.command = ["timeout", "--kill-after=1s", "20s", "python3", "-B", decodeURIComponent(String(Qt.resolvedUrl("backend.py")).replace(/^file:\/\//, ""))].concat(args)
         backend.running = true
     }
     function refresh() {
@@ -46,18 +46,13 @@ Panel {
         else request("applying", args)
     }
     function finishRequest(code, output, diagnostics) {
-        if (requestPhase === "reading" && pendingAction !== null) {
-            var args = pendingAction
-            request("applying", args)
-            pendingAction = null
-            return
-        }
+        const timedOut = code === 124 || code === 137
         if (requestPhase === "applying") {
             try {
                 var result = JSON.parse(output)
                 if (code === 0 && result.ok) notice = result.message || "Applied"
                 else actionError = result.error || diagnostics || "Could not apply hardware change"
-            } catch (e) { actionError = diagnostics || "Action returned no result" }
+            } catch (e) { actionError = diagnostics || (timedOut ? "Hardware request timed out" : "Action returned no result") }
             request("confirming", ["status"])
             return
         }
@@ -65,10 +60,19 @@ Panel {
             var snapshot = JSON.parse(output)
             if (code !== 0 || !snapshot || !Array.isArray(snapshot.devices) || !Array.isArray(snapshot.batteries)
                 || !snapshot.power || !Array.isArray(snapshot.power.profiles)) throw new Error()
+            if (pendingAction !== null) {
+                var args = pendingAction
+                request("applying", args)
+                pendingAction = null
+                return
+            }
             report = snapshot
             if (zone >= report.devices.length) zone = 0
             statusError = ""
-        } catch (e) { statusError = diagnostics || "Could not read hardware status" }
+        } catch (e) {
+            statusError = diagnostics || (timedOut ? "Hardware request timed out" : "Could not read hardware status")
+            pendingAction = null
+        }
         requestPhase = "idle"
     }
     onOpenedChanged: if (opened) refresh()

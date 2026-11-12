@@ -66,6 +66,8 @@ installed button listener available.
 | --- | --- |
 | Omarchy 4 with Quickshell | Native shell plugin and popup |
 | Python 3 | Plugin backend; standard library only |
+| GNU coreutils `timeout` | Deadline for hardware requests |
+| `wl-paste` from wl-clipboard | Optional Ctrl+V for a custom `#RRGGBB` value |
 | systemd `busctl` | Communication with asusd |
 | asusctl and a running asusd service | Keyboard lighting and battery charge limits; tested with 6.4.0 |
 | power-profiles-daemon and `powerprofilesctl` | Power profiles |

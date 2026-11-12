@@ -1,4 +1,7 @@
 import unittest
+import os
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from contextlib import ExitStack
@@ -7,6 +10,34 @@ import backend
 from button_listener import matches_frame
 
 class Validation(unittest.TestCase):
+ def test_theme_role_requires_a_small_regular_file(self):
+  with tempfile.TemporaryDirectory() as tmp, patch.object(backend, 'STATE_DIR', Path(tmp)):
+   role = Path(tmp)/'keyboard-theme-role'
+   os.mkfifo(role)
+   self.assertEqual(backend.keyboard_theme_role(), '')
+   role.unlink()
+   role.write_text('accent' + ' '*40)
+   self.assertEqual(backend.keyboard_theme_role(), '')
+   role.write_text('accent\n')
+   self.assertEqual(backend.keyboard_theme_role(), 'accent')
+
+ def test_explicit_clipboard_read_limits_input_and_reaps_provider(self):
+  popen = subprocess.Popen
+  for data, expected in [(b'#aBc123', '#abc123'), (b'#aBc123\n', None), (b'', None)]:
+   with self.subTest(data=data):
+    child = popen([sys.executable, '-c', 'import sys; sys.stdout.buffer.write(' + repr(data) + ')'],
+                  stdout=subprocess.PIPE)
+    with patch.object(backend.subprocess, 'Popen', return_value=child):
+     self.assertEqual(backend.clipboard_color(), expected)
+    self.assertIsNotNone(child.poll())
+
+ def test_idle_clipboard_provider_is_reaped_at_deadline(self):
+  child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'],
+                           stdout=subprocess.PIPE)
+  with patch.object(backend.subprocess, 'Popen', return_value=child):
+   self.assertIsNone(backend.clipboard_color())
+  self.assertIsNotNone(child.poll())
+
  def test_button_requires_scan_and_press(self):
   self.assertTrue(matches_frame([(4,4,0xffff01),(1,202,1)]))
   for frame in [[(4,4,233),(1,240,1)],[(1,202,1)],[(4,4,0xffff01),(1,202,0)],[(4,4,233),(1,202,1)]]:
@@ -44,7 +75,9 @@ class Validation(unittest.TestCase):
    state=Path(tmp)/'lightbar.json'
    stack.enter_context(patch.object(backend,'LIGHTBAR_STATE',state))
    stack.enter_context(patch.object(backend,'z13_binary',return_value='/usr/bin/z13ctl'))
-   stack.enter_context(patch.object(backend,'read',return_value='GZ302EA'))
+   read = backend.read
+   stack.enter_context(patch.object(backend, 'read', side_effect=lambda path, **kwargs:
+       'GZ302EA' if str(path).endswith('/product_name') else read(path, **kwargs)))
    run=stack.enter_context(patch.object(backend,'run'))
    backend.action(['color','z13ctl:lightbar','#0000ff'])
    run.assert_called_once_with('/usr/bin/z13ctl','--device','lightbar','apply','--mode','static','--color','0000ff','--brightness','medium')

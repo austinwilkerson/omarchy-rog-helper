@@ -85,6 +85,7 @@ Column {
     }
     onTargetChanged: {
         gestureTarget = ""
+        hex.revision++
         Qt.callLater(function() {
             picker.sync(Qt.color(root.shownColor))
             hex.text = root.shownColor
@@ -159,12 +160,59 @@ Column {
             spacing: Commons.Style.space(8)
             Controls.TextField {
                 id: hex
+                property int revision: 0
+                property int pasteRevision: -1
+                readonly property bool validColor: /^#[0-9a-fA-F]{6}$/.test(text)
                 width: Math.max(100, parent.width - apply.implicitWidth - parent.spacing)
                 text: root.shownColor
                 color: root.fg
                 font.family: root.fontFamily
-                validator: RegularExpressionValidator { regularExpression: /#[0-9a-fA-F]{6}/ }
-                onAccepted: if (acceptableInput) root.choose(text)
+                // Keep Qt's native clipboard reads disabled in the shared shell.
+                readOnly: true
+                cursorVisible: activeFocus
+                selectByMouse: true
+                onTextChanged: revision++
+                onActiveFocusChanged: revision++
+                Keys.onPressed: event => {
+                    if (!root.enabled) return
+                    if (event.matches(StandardKey.Paste)) {
+                        if (!paste.running) {
+                            pasteRevision = revision
+                            paste.running = true
+                        }
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        if (validColor) root.choose(text)
+                    } else if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
+                        var start = selectionStart
+                        var end = selectionEnd
+                        if (start === end) {
+                            if (event.key === Qt.Key_Backspace) start = Math.max(0, start - 1)
+                            else end = Math.min(text.length, end + 1)
+                        }
+                        text = text.slice(0, start) + text.slice(end)
+                        cursorPosition = start
+                    } else if (/^[#0-9a-fA-F]$/.test(event.text)
+                               && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+                        var next = text.slice(0, selectionStart) + event.text + text.slice(selectionEnd)
+                        var position = selectionStart + 1
+                        if (/^#?[0-9a-fA-F]{0,6}$/.test(next)) {
+                            text = next
+                            cursorPosition = position
+                        }
+                    } else return
+                    event.accepted = true
+                }
+                Process {
+                    id: paste
+                    command: ["timeout", "--kill-after=1s", "3s", "python3", "-B",
+                              decodeURIComponent(String(Qt.resolvedUrl("backend.py")).replace(/^file:\/\//, "")), "clipboard-color"]
+                    stdout: StdioCollector { id: clipboard }
+                    onExited: function(code) {
+                        const color = clipboard.text.trim()
+                        if (code === 0 && hex.activeFocus && root.enabled && hex.revision === hex.pasteRevision
+                            && /^#[0-9a-fA-F]{6}$/.test(color)) hex.text = color
+                    }
+                }
             }
             Button {
                 id: apply
@@ -172,7 +220,7 @@ Column {
                 foreground: root.fg
                 fontFamily: root.fontFamily
                 bordered: true
-                enabled: hex.acceptableInput
+                enabled: hex.validColor
                 onClicked: root.choose(hex.text)
             }
         }

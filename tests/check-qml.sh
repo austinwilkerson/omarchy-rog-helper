@@ -78,9 +78,21 @@ ShellRoot {
                         throw new Error("Write did not get a fresh, successful readback: " + panel.error)
                     panel.act(["fail"])
                     step++
-                } else {
+                } else if (step === 2) {
                     if (panel.report.value !== "new" || panel.error !== "Fixture failure")
                         throw new Error("Readback swallowed the action failure: " + panel.error)
+                    panel.request("reading", ["invalid-status"])
+                    panel.act(["duplicate"])
+                    step++
+                } else if (step === 3) {
+                    if (panel.pendingAction !== null || panel.report.value !== "new"
+                        || panel.statusError !== "Could not read hardware status" || panel.actionError)
+                        throw new Error("Failed prerequisite read replayed an action or discarded the snapshot")
+                    panel.refresh()
+                    step++
+                } else {
+                    if (panel.error || panel.report.value !== "new")
+                        throw new Error("Refresh did not recover after a failed read")
                     console.log("ROG_REQUEST_ORDERING_OK")
                     requestChecked = true
                     stop()

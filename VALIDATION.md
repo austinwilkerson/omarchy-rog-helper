@@ -29,6 +29,13 @@ independently through the backend.
 
 ## Passed
 
+For 0.3.2, the backend tests cover bounded saved-state and explicit clipboard
+reads, including cancellation of an idle clipboard helper. The QML fixture
+checks that a failed prerequisite read discards a queued action, preserves the
+last good snapshot, and allows a later refresh. A temporary XDG configuration
+with stub service and access commands verified custom-path unit removal and
+cleanup routing.
+
 - Omarchy manifest validation; plugin discovered, enabled and rendered in the
   running shell. Native layer-shell popup, not a standalone/tiled application.
 - Current theme colors, fonts, native border/control styling, compact 7-column
@@ -136,6 +143,13 @@ backend reported an active Media keys map, exactly one Fn+Esc binding, and no
 backend or Hyprland configuration errors after reboot. The RK68 Plus was
 unavailable for a physical check. The configuration and keymap are scoped to
 the two verified Z13 keyboard interfaces.
+
+On 2026-11-11, the owner tested both keyboards together on Shammah. The Z13's
+F2 and F3 controlled volume in Media keys mode. The Bluetooth RK68 Plus
+controlled volume after enabling its media layer with Fn+Left Ctrl and
+continued to do so after the Z13 switched to Function keys mode. The owner
+also confirmed that Z13 F9 dictation worked in Function keys mode. Hyprland
+reported the standard English (US) keymap on the RK68 Plus throughout.
 
 ## 0.3.0 — Theme, battery and display controls
 
